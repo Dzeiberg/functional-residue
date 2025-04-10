@@ -9,3 +9,9 @@ repos:
     rev: 22.10.0
     hooks:
     -   id: black
+-   repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.6.14
+    hooks:
+      - id: uv-export
+      - id: pip-compile
+        args: [requirements.in, -o, requirements.txt]
