@@ -8,6 +8,7 @@ import time
 from typing import Dict
 import torch
 from transformers import T5EncoderModel, T5Tokenizer
+import tempfile
 
 
 class EmbeddingSet(object):
@@ -109,8 +110,11 @@ class EmbeddingSet(object):
             return embeddings
         missing_sequences = [sequences[i] for i in missing_indices]
         missing_ids = [ids[i] for i in missing_indices]
-        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".fasta") as seq_file, \
-             tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as emb_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".fasta"
+        ) as seq_file, tempfile.NamedTemporaryFile(
+            delete=False, suffix=".h5"
+        ) as emb_file:
             seq_path = Path(seq_file.name)
             emb_path = Path(emb_file.name)
             for seq, _id in zip(missing_sequences, missing_ids):
