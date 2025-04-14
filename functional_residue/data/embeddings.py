@@ -109,11 +109,12 @@ class EmbeddingSet(object):
             return embeddings
         missing_sequences = [sequences[i] for i in missing_indices]
         missing_ids = [ids[i] for i in missing_indices]
-        seq_path = Path("/tmp/test.fasta")
-        emb_path = Path("/tmp/test.h5")
-        with open(seq_path, "w") as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".fasta") as seq_file, \
+             tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as emb_file:
+            seq_path = Path(seq_file.name)
+            emb_path = Path(emb_file.name)
             for seq, _id in zip(missing_sequences, missing_ids):
-                f.write(f">{_id}\n{seq}\n")
+                seq_file.write(f">{_id}\n{seq}\n")
         get_embeddings(seq_path, emb_path, per_protein=True, model_dir=None)
         with h5py.File(emb_path, "r") as f:
             generated_embeddings = np.array([f[_id][...] for _id in missing_ids])
