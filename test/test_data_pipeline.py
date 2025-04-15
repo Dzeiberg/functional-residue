@@ -15,7 +15,7 @@ def test_fetch_pdb():
     assert structure.id == "101M"
 
 
-def test_get_residue_distance_mat():
+def test_get_residue_distance_mat(**kwargs):
     # structure = fetch_pdb('101M', '.test_data', return_structure=True)
     structure = fetch_alphafold_prediction(
         "P02185", ".test_data", return_structure=True
@@ -23,7 +23,7 @@ def test_get_residue_distance_mat():
     assert structure is not None
     assert structure.id == "AF-P02185-F1-model_v4"
     chain = structure[0]["A"]
-    distance_matrix, residues = get_residue_distance_mat(chain)
+    distance_matrix, residues = get_residue_distance_mat(chain, **kwargs)
     assert distance_matrix.shape == (len(residues), len(residues))
     x0 = [-16.647, 7.731, 6.117]
     x1 = [-15.617, 6.938, 9.723]

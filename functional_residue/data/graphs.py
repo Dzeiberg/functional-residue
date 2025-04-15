@@ -15,7 +15,7 @@ def get_residue_coords(res: Residue) -> np.ndarray:
         coords (np.ndarray): coordinates of all atoms of the residue
     """
     # Get the coordinates of the atoms of a residue
-    coords = np.stack([np.array(list(a.get_vector())) for a in res.get_atoms()])
+    coords = np.stack([np.array(a.get_vector().get_array()) for a in res.get_atoms()])
     return coords
 
 
@@ -83,7 +83,9 @@ def get_residue_distance_mat(
         residue_indices_path, dtype=int, mode="w+", shape=residue_indices.shape
     )
     mm_residue_indices[:] = residue_indices[:]
-    atom_distances = pairwise_distances(list(map(lambda v: v._ar, coords)), n_jobs=-1)
+    atom_distances = pairwise_distances(
+        np.array(list(map(lambda v: v._ar, coords))), n_jobs=-1
+    )
     mm_atom_dists = np.memmap(
         atom_distances_path, dtype="float32", mode="w+", shape=atom_distances.shape
     )
