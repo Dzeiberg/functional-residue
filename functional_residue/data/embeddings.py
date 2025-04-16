@@ -5,9 +5,9 @@ from Bio import SeqIO
 import gzip
 import datetime
 import time
-from typing import Dict
+from typing import Dict, List
 import torch
-from transformers import T5EncoderModel, T5Tokenizer
+from transformers.models.t5 import T5EncoderModel, T5Tokenizer
 import tempfile
 
 
@@ -87,7 +87,7 @@ class EmbeddingSet(object):
             return self.embeddings[self.id_to_position[_id]]
         return np.ones(1024) * np.nan
 
-    def get_many_embeddings(self, sequences=None, ids=None) -> np.ndarray:
+    def get_many_embeddings(self, sequences: List[str], ids: List[str]) -> np.ndarray:
         """
         Get the embeddings for many sequences or IDs. Sequences or IDs must be provided.
         First queries by sequence, then by ID.
@@ -121,7 +121,7 @@ class EmbeddingSet(object):
                 seq_file.write(f">{_id}\n{seq}\n")
         get_embeddings(seq_path, emb_path, per_protein=True, model_dir=None)
         with h5py.File(emb_path, "r") as f:
-            generated_embeddings = np.array([f[_id][...] for _id in missing_ids])
+            generated_embeddings = np.array([f[_id][...] for _id in missing_ids])  # type: ignore
         # 3) add generated embeddings to EmbeddingSet
         self.id_to_position.update(
             {id: i for i, id in enumerate(missing_ids, start=len(self.ids))}
@@ -186,9 +186,9 @@ def get_T5_model(
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if device == torch.device("cpu"):
         print("Casting model to full precision for running on CPU ...")
-        model.to(torch.float32)
+        model = model.to(torch.float32)  # type: ignore
 
-    model = model.to(device)
+    model = model.to(device)  # type: ignore
     model = model.eval()
     vocab = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False)
     return model, vocab
@@ -251,9 +251,7 @@ def get_embeddings(
 
     avg_length = sum([len(seq) for _, seq in seq_dict.items()]) / len(seq_dict)
     n_long = sum([1 for _, seq in seq_dict.items() if len(seq) > max_seq_len])
-    seq_dict = sorted(
-        seq_dict.items(), key=lambda kv: len(seq_dict[kv[0]]), reverse=True
-    )
+    seq_dict = sorted(seq_dict.items(), key=lambda kv: len(seq_dict[kv[0]]), reverse=True)  # type: ignore
 
     print("Average sequence length: {}".format(avg_length))
     print("Number of sequences >{}: {}".format(max_seq_len, n_long))

@@ -1,4 +1,8 @@
-from functional_residue.data.structures import fetch_pdb, fetch_alphafold_prediction
+from functional_residue.data.structures import (
+    fetch_pdb,
+    fetch_alphafold_prediction,
+    get_chain_sequence,
+)
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
 import pytest
@@ -38,11 +42,7 @@ def test_get_embedding():
         "P02185", ".test_data", return_structure=True
     )
     chain = structure[0]["A"]  # type: ignore
-    residues = list(chain.get_residues())
-    res_names = [
-        protein_letters_3to1_extended[residue.resname.upper()] for residue in residues
-    ]
-    sequence = "".join(res_names)
+    sequence = get_chain_sequence(chain)
     embedding_set = EmbeddingSet()
     embedding_out = embedding_set.get_many_embeddings(
         sequences=[
@@ -67,6 +67,7 @@ def test_get_embedding():
 
 
 if __name__ == "__main__":
+    test_fetch_pdb()
     test_get_embedding()
     test_get_residue_distance_mat(processes=4)
     print("all tests passed")
