@@ -1,9 +1,12 @@
-import urllib
+from urllib import request
 from pathlib import Path
-from Bio.PDB import PDBParser
+from Bio.PDB.PDBParser import PDBParser
 from Bio.PDB.Structure import Structure
+from Bio.PDB.Chain import Chain
+from Bio.PDB.Residue import Residue
+from Bio.Data.PDBData import protein_letters_3to1_extended
 import json
-from typing import Optional
+from typing import Optional, List
 
 
 def download_file(url, save_file):
@@ -19,7 +22,7 @@ def download_file(url, save_file):
     """
     if Path(save_file).exists():
         return
-    urllib.request.urlretrieve(url, save_file)
+    request.urlretrieve(url, save_file)
 
 
 def fetch_pdb(pdb_id: str, save_dir: str | Path, **kwargs) -> Optional[Structure]:
@@ -48,7 +51,7 @@ def fetch_pdb(pdb_id: str, save_dir: str | Path, **kwargs) -> Optional[Structure
     return None
 
 
-def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure:
+def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure | None:
     """
     Parse a PDB file and return the structure object.
 
@@ -81,7 +84,7 @@ def fetch_alphafold_prediction(
     str: The URL to the AlphaFold prediction.
     """
     query_url = f"https://alphafold.ebi.ac.uk/api/prediction/{uniprot_acc}"
-    response = urllib.request.urlopen(query_url)
+    response = request.urlopen(query_url)
     if response.status != 200:
         raise ValueError(
             f"Error fetching AlphaFold prediction for {uniprot_acc}: {response.status}"
@@ -97,3 +100,34 @@ def fetch_alphafold_prediction(
     if kwargs.get("return_structure", False):
         structure = parse_pdb_structure(file_name, save_dir / file_name)
         return structure
+
+
+def get_chain_sequence(chain: Chain) -> str:
+    """
+    Parse the sequence of a chain and return it as a string.
+
+    Parameters:
+    - chain (Chain): The chain object to parse.
+
+    Returns:
+    str: The sequence of the chain.
+    """
+    residues = get_standard_residues(chain)
+    res_names = [
+        protein_letters_3to1_extended[residue.resname.upper()] for residue in residues
+    ]
+    sequence = "".join(res_names)
+    return sequence
+
+
+def get_standard_residues(chain: Chain) -> List[Residue]:
+    """
+    Filter out heteroatoms
+
+    Args:
+        chain (Chain): chain object
+
+    Returns:
+        List[Residue]: list of standard residues
+    """
+    return [res for res in chain.get_residues() if res.id[0] == " "]

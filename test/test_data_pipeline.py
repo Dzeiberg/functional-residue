@@ -1,8 +1,18 @@
-from functional_residue.data.structures import fetch_pdb, fetch_alphafold_prediction
+from functional_residue.data.structures import (
+    fetch_pdb,
+    fetch_alphafold_prediction,
+    get_chain_sequence,
+    get_standard_residues,
+)
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
+from functional_residue.models.GAT import GAT
+from torch_geometric.nn import GATConv
 import pytest
 import numpy as np
+from Bio.Data.PDBData import protein_letters_3to1_extended
+import torch
+from torch_geometric.utils import dense_to_sparse
 
 
 def test_fetch_pdb():
@@ -13,6 +23,21 @@ def test_fetch_pdb():
     structure = fetch_pdb("101M", ".test_data", return_structure=True)
     assert structure is not None
     assert structure.id == "101M"
+
+
+def test_get_pdb_distance_mat():
+    """
+    Test the get_pdb_distance_mat function.
+    """
+    # Fetch a PDB file and save it to the specified directory
+    structure = fetch_pdb("101M", ".test_data", return_structure=True)
+    assert structure is not None
+    assert structure.id == "101M"
+    chain = structure[0]["A"]
+    residues = get_standard_residues(chain)
+    assert len(residues) == 154
+    distance_matrix, residues = get_residue_distance_mat(chain)
+    assert distance_matrix.shape == (len(residues), len(residues))
 
 
 def test_get_residue_distance_mat(**kwargs):
@@ -32,6 +57,77 @@ def test_get_residue_distance_mat(**kwargs):
     assert distance_matrix[0, 0] == pytest.approx(0)
 
 
+def test_get_embedding():
+    structure = fetch_alphafold_prediction(
+        "P02185", ".test_data", return_structure=True
+    )
+    chain = structure[0]["A"]  # type: ignore
+    sequence = get_chain_sequence(chain)
+    embedding_set = EmbeddingSet()
+    embedding_out = embedding_set.get_many_embeddings(
+        sequences=[
+            sequence,
+        ],
+        ids=[
+            structure.id,  # type: ignore
+        ],
+    )
+    assert embedding_out[0].shape == (len(sequence), 1024)
+    assert len(embedding_out) == 1
+    seq = "MVLSEGEWQLVLHVWAKVEADVAGHGQDILIRLFKSHPETLEKFDRFKHLKTEAEMKASEDLKKHGVTVLTALGAILKKKGHHEAELKPLAQSHATKHKIPIKYLEFISEAIIHVLHSRHPGDFGADAQGAMNKALELFRKDIAAKYKELGYQG"
+    embedding_out_2 = embedding_set.get_many_embeddings(
+        sequences=[
+            seq,
+        ],
+        ids=[
+            "P02185",
+        ],
+    )
+    assert embedding_out_2[0].shape == (len(sequence), 1024)
+    assert (embedding_out[0] == embedding_out[0]).all()
+
+
+def test_forward():
+    gat = GAT(input_dim=1024, hidden_dim=512, output_dim=1, num_heads=16)
+    assert isinstance(gat, GAT)
+    assert isinstance(gat.gat1, GATConv)
+    assert isinstance(gat.gat_out, GATConv)
+
+    structure = fetch_alphafold_prediction(
+        "P02185", ".test_data", return_structure=True
+    )
+    chain = structure[0]["A"]  # type: ignore
+    sequence = get_chain_sequence(chain)
+    embedding_set = EmbeddingSet()
+    embedding_out = embedding_set.get_many_embeddings(
+        sequences=[
+            sequence,
+        ],
+        ids=[
+            structure.id,  # type: ignore
+        ],
+    )
+    assert embedding_out[0].shape == (len(sequence), 1024)
+    distance_matrix, residues = get_residue_distance_mat(chain)
+    assert distance_matrix.shape == (len(residues), len(residues))
+    edge_index = dense_to_sparse(torch.Tensor(distance_matrix < 6.0))[0]
+    output = (
+        gat(
+            torch.Tensor(embedding_out[0]),
+            edge_index,
+        )
+        .detach()
+        .cpu()
+        .numpy()
+    )
+    assert isinstance(output, np.ndarray)
+    assert output.shape == (len(sequence), 1)
+
+
 if __name__ == "__main__":
+    test_forward()
+    test_get_pdb_distance_mat()
+    test_fetch_pdb()
+    test_get_embedding()
     test_get_residue_distance_mat(processes=4)
     print("all tests passed")
