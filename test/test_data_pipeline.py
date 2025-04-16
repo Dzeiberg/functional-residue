@@ -3,7 +3,7 @@ from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
 import pytest
 import numpy as np
-from Bio.PDB.Polypeptide import protein_letters_3to1_extended
+from Bio.Data.PDBData import protein_letters_3to1_extended
 
 
 def test_fetch_pdb():
@@ -49,7 +49,7 @@ def test_get_embedding():
             sequence,
         ],
         ids=[
-            structure.id,
+            structure.id,  # type: ignore
         ],
     )
     assert embedding_out.shape == (1, 1024)
