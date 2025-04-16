@@ -53,7 +53,7 @@ from functional_residue.data.graphs import get_residue_distance_mat
 structure = fetch_alphafold_prediction("P02185", "structures/", return_structure=True)
 chain = structure[0]["A"]
 distance_matrix, residues = get_residue_distance_mat(chain)
-# Draw edges between all resiudes with Ca atoms closer than 6Å
+# Draw edges between all residues with Ca atoms closer than 6Å
 Ca_edge_threshold = 6
 graph = distance_matrix < Ca_edge_threshold
 ```
