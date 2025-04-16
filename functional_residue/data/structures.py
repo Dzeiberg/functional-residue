@@ -3,9 +3,10 @@ from pathlib import Path
 from Bio.PDB.PDBParser import PDBParser
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Chain import Chain
+from Bio.PDB.Residue import Residue
 from Bio.Data.PDBData import protein_letters_3to1_extended
 import json
-from typing import Optional
+from typing import Optional, List
 
 
 def download_file(url, save_file):
@@ -111,9 +112,22 @@ def get_chain_sequence(chain: Chain) -> str:
     Returns:
     str: The sequence of the chain.
     """
-    residues = list(chain.get_residues())
+    residues = get_standard_residues(chain)
     res_names = [
         protein_letters_3to1_extended[residue.resname.upper()] for residue in residues
     ]
     sequence = "".join(res_names)
     return sequence
+
+
+def get_standard_residues(chain: Chain) -> List[Residue]:
+    """
+    Filter out heteroatoms
+
+    Args:
+        chain (Chain): chain object
+
+    Returns:
+        List[Residue]: list of standard residues
+    """
+    return [res for res in chain.get_residues() if res.id[0] == " "]

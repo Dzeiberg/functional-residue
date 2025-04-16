@@ -6,6 +6,10 @@ from multiprocessing import Pool
 from typing import List, Tuple
 import os  # Add import for os to handle file cleanup
 
+from functional_residue.data.structures import (
+    get_standard_residues,
+)
+
 
 def get_residue_coords(res: Residue) -> np.ndarray:
     """Get coordinates of all atoms of a residue
@@ -61,7 +65,7 @@ def get_residue_distance_mat(
         residueDistances (np.array) (n_residues x n_residues): residue distance matrix
         residues (list): list of residues
     """
-    residues = chain.get_list()
+    residues = get_standard_residues(chain)
     n_residues = len(residues)
     if kwargs.get("Ca_only", True):
         coord_arrays = [get_Ca_coords(r) for r in residues]

@@ -2,6 +2,7 @@ from functional_residue.data.structures import (
     fetch_pdb,
     fetch_alphafold_prediction,
     get_chain_sequence,
+    get_standard_residues,
 )
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
@@ -18,6 +19,21 @@ def test_fetch_pdb():
     structure = fetch_pdb("101M", ".test_data", return_structure=True)
     assert structure is not None
     assert structure.id == "101M"
+
+
+def test_get_pdb_distance_mat():
+    """
+    Test the get_pdb_distance_mat function.
+    """
+    # Fetch a PDB file and save it to the specified directory
+    structure = fetch_pdb("101M", ".test_data", return_structure=True)
+    assert structure is not None
+    assert structure.id == "101M"
+    chain = structure[0]["A"]
+    residues = get_standard_residues(chain)
+    assert len(residues) == 154
+    distance_matrix, residues = get_residue_distance_mat(chain)
+    assert distance_matrix.shape == (len(residues), len(residues))
 
 
 def test_get_residue_distance_mat(**kwargs):
@@ -67,6 +83,7 @@ def test_get_embedding():
 
 
 if __name__ == "__main__":
+    test_get_pdb_distance_mat()
     test_fetch_pdb()
     test_get_embedding()
     test_get_residue_distance_mat(processes=4)
