@@ -1,12 +1,13 @@
 from urllib import request
 from pathlib import Path
+from Bio import SeqIO
 from Bio.PDB.PDBParser import PDBParser
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Chain import Chain
 from Bio.PDB.Residue import Residue
 from Bio.Data.PDBData import protein_letters_3to1_extended
 import json
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 def download_file(url, save_file):
@@ -51,6 +52,23 @@ def fetch_pdb(pdb_id: str, save_dir: str | Path, **kwargs) -> Optional[Structure
     return None
 
 
+def parse_seqres(pdb_filepath: str | Path) -> Dict[str, str]:
+    """
+    Parse the SEQRES records from a PDB file and return the sequence as a dict mapping chain id to sequence string.
+
+    Parameters:
+    pdb_filepath (str): The path to the PDB file.
+
+    Returns:
+    Dict[str,str]: Chain id to sequence string mapping
+    """
+    sequences = {}
+    with open(pdb_filepath, "r") as file:
+        for record in SeqIO.parse(file, "pdb-seqres"):
+            sequences[record.annotations["chain"]] = str(record.seq)
+    return sequences
+
+
 def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure | None:
     """
     Parse a PDB file and return the structure object.
@@ -62,8 +80,16 @@ def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure | None:
     Returns:
     Structure: The parsed structure object.
     """
+
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure(pdb_id, path)
+    chain_sequences = parse_seqres(path)
+    if len(structure) > 1:  # type: ignore
+        print(
+            "Warning: I'm only expecting one model in the PDB file, but I found multiple models."
+        )
+    for chain_id, chain_seq in chain_sequences.items():
+        structure[0][chain_id].seq = chain_seq  # type: ignore
     return structure
 
 
@@ -102,7 +128,7 @@ def fetch_alphafold_prediction(
         return structure
 
 
-def get_chain_sequence(chain: Chain) -> str:
+def get_chain_resnames(chain: Chain) -> Dict[int, str]:
     """
     Parse the sequence of a chain and return it as a string.
 
@@ -113,11 +139,11 @@ def get_chain_sequence(chain: Chain) -> str:
     str: The sequence of the chain.
     """
     residues = get_standard_residues(chain)
-    res_names = [
-        protein_letters_3to1_extended[residue.resname.upper()] for residue in residues
-    ]
-    sequence = "".join(res_names)
-    return sequence
+    res_names = {
+        residue.id[1]: protein_letters_3to1_extended[residue.resname.upper()]
+        for residue in residues
+    }
+    return res_names
 
 
 def get_standard_residues(chain: Chain) -> List[Residue]:
