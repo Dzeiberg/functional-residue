@@ -2,11 +2,11 @@ import os
 import torch
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
-from Bio.PDB.Structure import Structure
+from Bio.PDB.Chain import Chain
 from torch_geometric.utils import dense_to_sparse
+import numpy as np
 from numpy import ndarray
 
-from functional_residue.data.structures import get_chain_sequence
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
 
@@ -30,30 +30,30 @@ class ProteinStructureDataset(Dataset):
         return torch.load(data_path, weights_only=False)
 
 
-def data_from_structure(
-    structure: Structure, node_labels: ndarray | None = None, **kwargs
+def data_from_chain(
+    chain: Chain, pos_resnums: list | ndarray | None = None, **kwargs
 ) -> Data:
     """
-    Convert a Bio.PDB Structure object to a PyTorch Geometric Data object, containing the adjacency matrix and node embeddings features
+    Convert a Bio.PDB chain object to a PyTorch Geometric Data object, containing the adjacency matrix and node embeddings features
 
     Parameters:
-    structure (Structure): The Bio.PDB Structure object to convert.
+    chain (chain): The Bio.PDB chain object to convert.
 
     Optional:
     - C_alpha_threshold (float): The threshold for the distance between C-alpha atoms to consider when drawing edges; default 6.0
     Returns:
     Data: The converted PyTorch Geometric Data object.
     """
-    chain = structure[0]["A"]  # type: ignore
-    sequence = get_chain_sequence(chain)
+    sequence = chain.seq  # type: ignore
     # Get the node embeddings
     embedding_set = EmbeddingSet()
+    chain_id = chain.full_id[0] + "_" + chain.full_id[-1]  # type: ignore
     embedding_out = embedding_set.get_many_embeddings(
         sequences=[
             sequence,
         ],
         ids=[
-            structure.id,  # type: ignore
+            chain_id,  # type: ignore
         ],
     )
     # Convert the embedding to a tensor
@@ -63,9 +63,11 @@ def data_from_structure(
     # Convert the distance matrix to a sparse adjacency matrix
     C_alpha_threshold = kwargs.get("C_alpha_threshold", 6.0)
     edge_index = dense_to_sparse(torch.Tensor(distance_matrix < C_alpha_threshold))[0]
-    if node_labels is not None:
-        node_labels = torch.tensor(node_labels, dtype=torch.float)  # type: ignore
-        assert node_labels.shape[0] == embedding_out.shape[0], "Node labels must match the number of nodes in the graph"  # type: ignore
+    resnum2idx = {residue.get_id()[1]: idx for idx, residue in enumerate(residues)}
+    if pos_resnums is not None:
+        pos_resnums = np.array(list(map(resnum2idx.get, pos_resnums)))
+        node_labels = torch.zeros(len(residues), dtype=torch.float)  # type: ignore
+        node_labels[pos_resnums] = 1
         data = Data(x=embedding_out, edge_index=edge_index, y=node_labels)  # type: ignore
     else:
         data = Data(x=embedding_out, edge_index=edge_index)

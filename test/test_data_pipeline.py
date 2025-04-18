@@ -1,14 +1,14 @@
 from functional_residue.data.structures import (
     fetch_pdb,
     fetch_alphafold_prediction,
-    get_chain_sequence,
+    get_chain_resnames,
     get_standard_residues,
 )
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
 from functional_residue.models.GAT import GAT
 from functional_residue.data.datasets import (
-    data_from_structure,
+    data_from_chain,
     ProteinStructureDataset,
 )
 from torch_geometric.nn import GATConv
@@ -68,7 +68,7 @@ def test_get_embedding():
         "P02185", ".test_data", return_structure=True
     )
     chain = structure[0]["A"]  # type: ignore
-    sequence = get_chain_sequence(chain)
+    sequence = chain.seq  # type: ignore
     embedding_set = EmbeddingSet()
     embedding_out = embedding_set.get_many_embeddings(
         sequences=[
@@ -117,7 +117,7 @@ def test_forward():
         "P02185", ".test_data", return_structure=True
     )
     chain = structure[0]["A"]  # type: ignore
-    sequence = get_chain_sequence(chain)
+    sequence = chain.seq  # type: ignore
     embedding_set = EmbeddingSet()
     embedding_out = embedding_set.get_many_embeddings(
         sequences=[
@@ -148,7 +148,7 @@ def test_data_creation():
     structure = fetch_alphafold_prediction(
         "P02185", ".test_data", return_structure=True
     )
-    data = data_from_structure(structure)  # type: ignore
+    data = data_from_chain(structure[0]["A"])  # type: ignore
     assert data.x.size() == (154, 1024)  # type: ignore
 
 
@@ -162,7 +162,7 @@ def test_dataset_creation():
     temp_data_dir.mkdir(parents=True, exist_ok=True)
 
     for structure in structures:
-        data = data_from_structure(structure)  # type: ignore
+        data = data_from_chain(structure[0]["A"])  # type: ignore
         torch.save(data, temp_data_dir.name + f"/{structure.id}.pt")  # type: ignore
     dataset = ProteinStructureDataset(temp_data_dir.name)
     assert len(dataset) == len(structures)
@@ -171,11 +171,11 @@ def test_dataset_creation():
 
 
 if __name__ == "__main__":
+    test_data_creation()
     test_dataset_creation()
     test_forward()
     test_get_pdb_distance_mat()
     test_fetch_pdb()
     test_get_embedding()
     test_get_residue_distance_mat(processes=4)
-    test_data_creation()
     print("all tests passed")
