@@ -27,7 +27,7 @@ class ProteinStructureDataset(Dataset):
 
     def get(self, idx):
         data_path = os.path.join(self.processed_dir, self.graph_files[idx])
-        return torch.load(data_path)
+        return torch.load(data_path, weights_only=False)
 
 
 def data_from_structure(

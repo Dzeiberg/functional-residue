@@ -18,6 +18,7 @@ import torch
 from torch_geometric.utils import dense_to_sparse
 from pathlib import Path
 import tempfile
+import shutil
 
 
 def test_fetch_pdb():
@@ -156,21 +157,25 @@ def test_dataset_creation():
         fetch_alphafold_prediction("P02185", ".test_data", return_structure=True),
         fetch_alphafold_prediction("P02163", ".test_data", return_structure=True),
     ]
-    temp_data_dir = tempfile.TemporaryDirectory()
+    # temp_data_dir = tempfile.TemporaryDirectory()
+    temp_data_dir = Path(".test_data/")
+    temp_data_dir.mkdir(parents=True, exist_ok=True)
 
     for structure in structures:
         data = data_from_structure(structure)  # type: ignore
         torch.save(data, temp_data_dir.name + f"/{structure.id}.pt")  # type: ignore
     dataset = ProteinStructureDataset(temp_data_dir.name)
     assert len(dataset) == len(structures)
+    assert dataset[0].x.size() == (154, 1024)  # type: ignore
+    shutil.rmtree(temp_data_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
+    test_dataset_creation()
     test_forward()
     test_get_pdb_distance_mat()
     test_fetch_pdb()
     test_get_embedding()
     test_get_residue_distance_mat(processes=4)
     test_data_creation()
-    test_dataset_creation()
     print("all tests passed")
