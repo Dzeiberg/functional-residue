@@ -13,6 +13,7 @@ import numpy as np
 from Bio.Data.PDBData import protein_letters_3to1_extended
 import torch
 from torch_geometric.utils import dense_to_sparse
+from pathlib import Path
 
 
 def test_fetch_pdb():
@@ -88,7 +89,21 @@ def test_get_embedding():
 
 
 def test_forward():
-    gat = GAT(input_dim=1024, hidden_dim=512, output_dim=1, num_heads=16)
+    gat = GAT(input_dim=1024, hidden_dim=2048, output_dim=1, num_heads=16)
+    file_path = (
+        Path(__file__).parent.parent
+        / "data"
+        / "cat_models"
+        / "gnn_prott5_xin_only_1.pt"
+    )
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Model file not found. Please download the model from {file_path}"
+        )
+    # Load the model weights
+    gat.load_state_dict(
+        torch.load(file_path, weights_only=True, map_location=torch.device("cpu"))
+    )
     assert isinstance(gat, GAT)
     assert isinstance(gat.gat1, GATConv)
     assert isinstance(gat.gat_out, GATConv)
