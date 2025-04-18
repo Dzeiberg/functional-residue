@@ -11,4 +11,5 @@ wheels/
 
 .test_data/
 .vscode/
-structures/
+data/cat_models/
+data/structures/

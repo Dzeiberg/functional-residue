@@ -7,12 +7,17 @@ from functional_residue.data.structures import (
 from functional_residue.data.graphs import get_residue_distance_mat
 from functional_residue.data.embeddings import EmbeddingSet
 from functional_residue.models.GAT import GAT
+from functional_residue.data.datasets import (
+    data_from_structure,
+    ProteinStructureDataset,
+)
 from torch_geometric.nn import GATConv
 import pytest
 import numpy as np
-from Bio.Data.PDBData import protein_letters_3to1_extended
 import torch
 from torch_geometric.utils import dense_to_sparse
+from pathlib import Path
+import tempfile
 
 
 def test_fetch_pdb():
@@ -88,7 +93,21 @@ def test_get_embedding():
 
 
 def test_forward():
-    gat = GAT(input_dim=1024, hidden_dim=512, output_dim=1, num_heads=16)
+    gat = GAT(input_dim=1024, hidden_dim=2048, output_dim=1, num_heads=16)
+    file_path = (
+        Path(__file__).parent.parent
+        / "data"
+        / "cat_models"
+        / "gnn_prott5_xin_only_1.pt"
+    )
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Model file not found. Please download the model from {file_path}"
+        )
+    # Load the model weights
+    gat.load_state_dict(
+        torch.load(file_path, weights_only=True, map_location=torch.device("cpu"))
+    )
     assert isinstance(gat, GAT)
     assert isinstance(gat.gat1, GATConv)
     assert isinstance(gat.gat_out, GATConv)
@@ -124,10 +143,34 @@ def test_forward():
     assert output.shape == (len(sequence), 1)
 
 
+def test_data_creation():
+    structure = fetch_alphafold_prediction(
+        "P02185", ".test_data", return_structure=True
+    )
+    data = data_from_structure(structure)  # type: ignore
+    assert data.x.size() == (154, 1024)  # type: ignore
+
+
+def test_dataset_creation():
+    structures = [
+        fetch_alphafold_prediction("P02185", ".test_data", return_structure=True),
+        fetch_alphafold_prediction("P02163", ".test_data", return_structure=True),
+    ]
+    temp_data_dir = tempfile.TemporaryDirectory()
+
+    for structure in structures:
+        data = data_from_structure(structure)  # type: ignore
+        torch.save(data, temp_data_dir.name + f"/{structure.id}.pt")  # type: ignore
+    dataset = ProteinStructureDataset(temp_data_dir.name)
+    assert len(dataset) == len(structures)
+
+
 if __name__ == "__main__":
     test_forward()
     test_get_pdb_distance_mat()
     test_fetch_pdb()
     test_get_embedding()
     test_get_residue_distance_mat(processes=4)
+    test_data_creation()
+    test_dataset_creation()
     print("all tests passed")
