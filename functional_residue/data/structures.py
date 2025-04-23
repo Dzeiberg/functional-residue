@@ -69,6 +69,31 @@ def parse_seqres(pdb_filepath: str | Path) -> Dict[str, str]:
     return sequences
 
 
+def get_chain_sequences_from_atoms(structure: Structure) -> Dict[str, str]:
+    """
+    Get the sequences of chains from the atoms in a PDB structure.
+
+    Parameters:
+    structure (Structure): The PDB structure object.
+
+    Returns:
+    Dict[str, str]: A dictionary mapping chain IDs to their sequences.
+    """
+    chain_sequences = {}
+    for model in structure:
+        for chain in model:
+            residues = get_standard_residues(chain)
+            res_names = {
+                residue.id[1]: protein_letters_3to1_extended[residue.resname.upper()]
+                for residue in residues
+            }
+            sequence = ""
+            for res_id in sorted(list(res_names.keys())):
+                sequence += res_names[res_id]
+            chain_sequences[chain.id] = sequence
+    return chain_sequences
+
+
 def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure | None:
     """
     Parse a PDB file and return the structure object.
@@ -84,11 +109,20 @@ def parse_pdb_structure(pdb_id: str, path: str | Path) -> Structure | None:
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure(pdb_id, path)
     chain_sequences = parse_seqres(path)
+    if not chain_sequences:
+        chain_sequences = get_chain_sequences_from_atoms(structure)  # type: ignore
+    if not chain_sequences:
+        raise ValueError(f"No sequences found in {path}")
+    if len(chain_sequences) != len(structure[0]):  # type: ignore
+        raise ValueError(
+            f"Number of chains in PDB file ({len(structure[0])}) does not match number of chains in SEQRES records ({len(chain_sequences)})"  # type: ignore
+        )
     if len(structure) > 1:  # type: ignore
         print(
             "Warning: I'm only expecting one model in the PDB file, but I found multiple models."
         )
     for chain_id, chain_seq in chain_sequences.items():
+        print(f"Chain {chain_id} has sequence {chain_seq} and length {len(chain_seq)}")
         structure[0][chain_id].seq = chain_seq  # type: ignore
     return structure
 
